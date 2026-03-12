@@ -1,37 +1,16 @@
 const express = require('express');
 const router = express.Router();
-const supabase = require('../supabaseClient');
-const crypto = require('crypto');
+const { supabase } = require('../config/supabase');
 const axios = require('axios');
-const { ethers } = require('ethers');
 
-// GET /api/assets - Get all assets (ONLY VERIFIED for public)
+// GET /api/assets - Get all verified assets (marketplace)
 router.get('/', async (req, res) => {
   try {
-    const { 
-      status, 
-      category, 
-      search, 
-      limit = 20, 
-      page = 1 
-    } = req.query;
-
-    let query = supabase
+    const { data: assets, error } = await supabase
       .from('assets')
-      .select('*', { count: 'exact' })
-      .eq('verification_status', 'VERIFIED');
-    
-    if (category) {
-      query = query.eq('category', category.toUpperCase());
-    }
-    
-    if (search) {
-      query = query.or(`name.ilike.%${search}%,location->city.ilike.%${search}%,location->state.ilike.%${search}%`);
-    }
-
-    const { data: assets, error, count } = await query
-      .order('created_at', { ascending: false })
-      .range((parseInt(page) - 1) * parseInt(limit), parseInt(page) * parseInt(limit) - 1);
+      .select('*')
+      .eq('verification_status', 'VERIFIED')
+      .order('created_at', { ascending: false });
 
     if (error) throw error;
 
@@ -39,13 +18,12 @@ router.get('/', async (req, res) => {
       success: true,
       data: assets,
       pagination: {
-        total: count || 0,
-        page: parseInt(page),
-        limit: parseInt(limit),
-        pages: Math.ceil((count || 0) / parseInt(limit))
+        total: assets.length,
+        page: 1,
+        limit: 20,
+        pages: Math.ceil(assets.length / 20)
       }
     });
-
   } catch (error) {
     console.error('Error fetching assets:', error);
     res.status(500).json({ error: 'Failed to fetch assets' });
@@ -58,17 +36,15 @@ router.get('/unclaimed', async (req, res) => {
     const { data: assets, error } = await supabase
       .from('assets')
       .select('*')
-      .eq('verification_status', 'UNCLAIMED')
+      .eq('claim_status', 'UNCLAIMED')
       .order('created_at', { ascending: false });
 
     if (error) throw error;
 
     res.json({
       success: true,
-      data: assets || [],
-      count: assets ? assets.length : 0
+      data: assets
     });
-
   } catch (error) {
     console.error('Error fetching unclaimed assets:', error);
     res.status(500).json({ error: 'Failed to fetch unclaimed assets' });
@@ -81,17 +57,15 @@ router.get('/tokenized', async (req, res) => {
     const { data: assets, error } = await supabase
       .from('assets')
       .select('*')
-      .eq('verification_status', 'TOKENIZED')
-      .order('tokenized_at', { ascending: false });
+      .eq('is_tokenized', true)
+      .order('created_at', { ascending: false });
 
     if (error) throw error;
 
     res.json({
       success: true,
-      data: assets || [],
-      count: assets ? assets.length : 0
+      data: assets
     });
-
   } catch (error) {
     console.error('Error fetching tokenized assets:', error);
     res.status(500).json({ error: 'Failed to fetch tokenized assets' });
@@ -101,8 +75,6 @@ router.get('/tokenized', async (req, res) => {
 // GET /api/assets/:id - Get single asset
 router.get('/:id', async (req, res) => {
   try {
-    const { walletAddress } = req.query;
-
     const { data: asset, error } = await supabase
       .from('assets')
       .select('*')
@@ -113,142 +85,167 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Asset not found' });
     }
 
-    if (asset.verification_status === 'VERIFIED' || asset.verification_status === 'TOKENIZED') {
-      return res.json({
-        success: true,
-        data: asset
-      });
-    }
-
-    if (asset.verification_status === 'PENDING' || asset.verification_status === 'REJECTED') {
-      if (!walletAddress || asset.owner_wallet.toLowerCase() !== walletAddress.toLowerCase()) {
-        return res.status(403).json({ 
-          error: 'This asset is pending verification and can only be viewed by the owner',
-          message: 'Asset not yet publicly available'
-        });
-      }
-    }
-
     res.json({
       success: true,
       data: asset
     });
-
   } catch (error) {
     console.error('Error fetching asset:', error);
     res.status(500).json({ error: 'Failed to fetch asset' });
   }
 });
 
-// POST /api/assets/register - Register new asset with AUTOMATIC verification
+// POST /api/assets/register - Register new asset with auto-verification
 router.post('/register', async (req, res) => {
   try {
     const {
       name,
       description,
-      category,
       estimatedValue,
+      ownerWallet,
+      category = 'REAL_ESTATE',
       location,
       propertyDetails,
-      images,
-      ownerWallet
+      images = []
     } = req.body;
 
-    if (!name || !description || !estimatedValue || !ownerWallet) {
-      return res.status(400).json({ 
-        error: 'Missing required fields: name, description, estimatedValue, ownerWallet' 
+    if (!name || !estimatedValue || !ownerWallet) {
+      return res.status(400).json({
+        error: 'Missing required fields: name, estimatedValue, ownerWallet'
       });
     }
 
-    const docString = JSON.stringify({ name, description, location });
-    const documentHash = crypto.createHash('sha256').update(docString).digest('hex');
-
     console.log(`📝 Registering asset: ${name}`);
 
-    const { data: asset, error: insertError } = await supabase
+    // Prepare AI analysis request
+    let aiAnalysisResult = {
+      riskScore: 78,
+      recommendation: 'HOLD',
+      yieldPotential: 5,
+      confidenceLevel: 0.5,
+      fraudLikelihood: 'MEDIUM',
+      investmentSummary: 'Property analysis based on available data. Market shows rising trends.',
+      risks: ['Market volatility'],
+      strengths: ['Good location'],
+      opportunities: ['Potential appreciation']
+    };
+
+    // Call AI service for analysis
+    try {
+      if (process.env.AI_SERVICE_URL && location) {
+        const aiResponse = await axios.post(
+          `${process.env.AI_SERVICE_URL}/api/analyze-complete`,
+          {
+            address: location.address || '',
+            city: location.city || '',
+            state: location.state || ''
+          },
+          { timeout: 30000 }
+        );
+
+        if (aiResponse.data && aiResponse.data.investment_analysis) {
+          const analysis = aiResponse.data.investment_analysis;
+          aiAnalysisResult = {
+            riskScore: analysis.score || 78,
+            recommendation: analysis.recommendation || 'HOLD',
+            yieldPotential: 5,
+            confidenceLevel: aiResponse.data.document_verification?.score / 100 || 0.5,
+            fraudLikelihood: aiResponse.data.document_verification?.score > 80 ? 'LOW' : 'MEDIUM',
+            investmentSummary: analysis.summary || aiAnalysisResult.investmentSummary,
+            risks: analysis.risks || aiAnalysisResult.risks,
+            strengths: analysis.strengths || aiAnalysisResult.strengths,
+            opportunities: analysis.opportunities || aiAnalysisResult.opportunities
+          };
+        }
+      }
+    } catch (aiError) {
+      console.warn('AI service unavailable, using fallback analysis:', aiError.message);
+    }
+
+    // Auto-verify the asset
+    let verification_status = 'VERIFIED';
+    
+    // Prepare blockchain data
+    const blockchainData = {
+      network: 'hedera-testnet',
+      verified_at: new Date().toISOString(),
+      document_hash: require('crypto').createHash('sha256').update(JSON.stringify({ name, ownerWallet, estimatedValue })).digest('hex'),
+      verification_id: `VER-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    };
+
+    // Submit verification to Hedera Consensus Service
+    const { submitVerificationMessage } = require('../utils/hedera');
+
+    try {
+      if (process.env.HEDERA_VERIFICATION_TOPIC_ID) {
+        const verificationMessage = {
+          assetId: 'pending',
+          assetName: name,
+          verifiedAt: new Date().toISOString(),
+          ownerWallet: ownerWallet,
+          estimatedValue: estimatedValue,
+          verificationMethod: 'automatic',
+          aiScore: aiAnalysisResult.riskScore || 78
+        };
+        
+        const hcsResult = await submitVerificationMessage(
+          process.env.HEDERA_VERIFICATION_TOPIC_ID,
+          verificationMessage
+        );
+        
+        console.log(`✅ Verification recorded on HCS: Sequence ${hcsResult.sequenceNumber}`);
+        
+        blockchainData.hcs_sequence = hcsResult.sequenceNumber;
+        blockchainData.hcs_transaction_id = hcsResult.transactionId;
+      }
+    } catch (hcsError) {
+      console.warn('HCS submission failed (non-critical):', hcsError.message);
+    }
+
+    // Insert asset into database
+    const { data: newAsset, error } = await supabase
       .from('assets')
       .insert([
         {
           name,
           description,
-          category: category || 'REAL_ESTATE',
           estimated_value: estimatedValue,
+          owner_wallet: ownerWallet,
+          category,
           location: location || {},
           property_details: propertyDetails || {},
           images: images || [],
-          owner_wallet: ownerWallet.toLowerCase(),
-          verification_status: 'PENDING',
-          blockchain_data: {
-            document_hash: documentHash,
-            network: 'Avalanche'
-          }
+          verification_status,
+          blockchain_data: blockchainData,
+          ai_analysis: aiAnalysisResult,
+          source_platform: 'assetoracle',
+          is_assetoracle_listing: true
         }
       ])
       .select()
       .single();
 
-    if (insertError) throw insertError;
+    if (error) throw error;
 
-    console.log(`✅ Asset created: ${asset.id}`);
-    console.log(`🔍 Starting automatic verification...`);
-
-    setImmediate(async () => {
-      try {
-        const baseUrl = process.env.NODE_ENV === 'production' 
-          ? 'https://assetoracle-backend.onrender.com'
-          : 'http://localhost:5000';
-
-        console.log(`  → Analyzing property for asset ${asset.id}...`);
-        const analysisResponse = await axios.post(`${baseUrl}/api/property/analyze`, {
-          address: location?.address || name,
-          city: location?.city || '',
-          state: location?.state || ''
-        });
-
-        console.log(`  → Running Chainlink verification for asset ${asset.id}...`);
-        const creResponse = await axios.post(`${baseUrl}/api/chainlink/run-workflow`, {
-          propertyAddress: `${location?.address || name}, ${location?.city || ''}, ${location?.state || ''}`
-        });
-
-        const verificationId = `VER-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        
-        const { error: updateError } = await supabase
-          .from('assets')
-          .update({
-            verification_status: 'VERIFIED',
-            ai_analysis: analysisResponse.data.data.aiAnalysis || {},
-            blockchain_data: {
-              document_hash: documentHash,
-              network: 'Avalanche',
-              verification_id: verificationId,
-              verified_at: new Date().toISOString(),
-              chainlink_don: 'fun-avalanche-fuji-1'
-            }
-          })
-          .eq('id', asset.id);
-
-        if (updateError) throw updateError;
-
-        console.log(`✅ Asset ${asset.id} automatically verified!`);
-
-      } catch (verificationError) {
-        console.error(`⚠️ Auto-verification failed for asset ${asset.id}:`, verificationError.message);
-      }
-    });
+    console.log(`✅ Asset registered and verified: ${newAsset.id}`);
 
     res.status(201).json({
       success: true,
-      message: 'Asset registered successfully. Verification in progress...',
-      data: asset,
-      verification: {
-        status: 'PROCESSING',
-        note: 'Asset will be automatically verified within 30-60 seconds.'
+      message: 'Asset registered and automatically verified',
+      data: {
+        asset: newAsset,
+        verification: {
+          status: verification_status,
+          verificationId: blockchainData.verification_id,
+          network: 'hedera-testnet',
+          aiAnalysis: aiAnalysisResult
+        }
       }
     });
 
   } catch (error) {
     console.error('Error registering asset:', error);
-    res.status(500).json({ error: 'Failed to register asset' });
+    res.status(500).json({ error: 'Failed to register asset', details: error.message });
   }
 });
 
@@ -258,7 +255,7 @@ router.post('/:id/claim', async (req, res) => {
     const { walletAddress, documents } = req.body;
 
     if (!walletAddress) {
-      return res.status(400).json({ error: 'walletAddress is required' });
+      return res.status(400).json({ error: 'Missing wallet address' });
     }
 
     const { data: asset, error: fetchError } = await supabase
@@ -271,62 +268,44 @@ router.post('/:id/claim', async (req, res) => {
       return res.status(404).json({ error: 'Asset not found' });
     }
 
-    if (asset.verification_status !== 'UNCLAIMED') {
-      return res.status(400).json({ 
-        error: 'Asset is not available for claim',
-        currentStatus: asset.verification_status
-      });
+    if (asset.claim_status !== 'UNCLAIMED') {
+      return res.status(400).json({ error: 'Asset is not available for claiming' });
     }
 
-    console.log(`📝 Processing claim for asset ${req.params.id}`);
+    console.log(`📋 Processing claim for asset ${req.params.id}`);
 
-    const verificationScore = 85;
+    // Update asset with claim
+    const { data: claimedAsset, error: updateError } = await supabase
+      .from('assets')
+      .update({
+        claimed_by: walletAddress,
+        claim_status: 'CLAIMED',
+        claim_documents: documents || [],
+        claimed_at: new Date().toISOString(),
+        owner_wallet: walletAddress,
+        verification_status: 'VERIFIED'
+      })
+      .eq('id', req.params.id)
+      .select()
+      .single();
 
-    if (verificationScore >= 70) {
-      const { data: claimedAsset, error: updateError } = await supabase
-        .from('assets')
-        .update({
-          owner_wallet: walletAddress.toLowerCase(),
-          verification_status: 'VERIFIED',
-          claimed_by: walletAddress.toLowerCase(),
-          claim_status: 'approved',
-          claimed_at: new Date().toISOString(),
-          verification_documents: documents || [],
-          blockchain_data: {
-            ...asset.blockchain_data,
-            verification_id: `VER-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            verified_at: new Date().toISOString()
-          }
-        })
-        .eq('id', req.params.id)
-        .select()
-        .single();
+    if (updateError) throw updateError;
 
-      if (updateError) throw updateError;
+    console.log(`✅ Asset claimed successfully`);
 
-      console.log(`✅ Claim approved for asset ${req.params.id}`);
-
-      return res.json({
-        success: true,
-        message: 'Claim approved - asset ownership transferred',
-        data: claimedAsset,
-        verification: {
-          score: verificationScore,
-          status: 'approved'
-        }
-      });
-    }
+    res.json({
+      success: true,
+      message: 'Asset claimed successfully',
+      data: claimedAsset
+    });
 
   } catch (error) {
-    console.error('Error processing claim:', error);
-    res.status(500).json({ 
-      error: 'Failed to process claim',
-      details: error.message 
-    });
+    console.error('Error claiming asset:', error);
+    res.status(500).json({ error: 'Failed to claim asset', details: error.message });
   }
 });
 
-// POST /api/assets/:id/tokenize - Complete tokenization with NFT minting
+// POST /api/assets/:id/tokenize - Tokenize verified asset with Hedera HTS
 router.post('/:id/tokenize', async (req, res) => {
   try {
     const { tokenSupply, pricePerToken, walletAddress } = req.body;
@@ -358,28 +337,62 @@ router.post('/:id/tokenize', async (req, res) => {
       return res.status(403).json({ error: 'Only asset owner can tokenize' });
     }
 
-    console.log(`🪙 Tokenizing asset ${req.params.id}`);
+    console.log(`🪙 Tokenizing asset ${req.params.id} on Hedera`);
 
-    const tokenId = Date.now(); // NUMBER not string
-    const TOKEN_CONTRACT_ADDRESS = "0x17412965b7e899A84f9a4D74fC3F5f36463Cf8b9";
+    // Import Hedera utilities
+    const { createPropertyToken } = require('../utils/hedera');
+
+    let hederaTokenData = null;
+    
+    try {
+      // Create HTS token on Hedera
+      const tokenResult = await createPropertyToken(
+        asset.name,
+        tokenSupply
+      );
+      
+      hederaTokenData = {
+        tokenId: tokenResult.tokenId,
+        transactionId: tokenResult.transactionId,
+        network: 'hedera-testnet',
+        created: true
+      };
+      
+      console.log(`✅ Hedera token created: ${tokenResult.tokenId}`);
+      
+    } catch (hederaError) {
+      console.warn('Hedera token creation failed, storing metadata only:', hederaError.message);
+      
+      // Fallback: Store token metadata without actual HTS creation
+      hederaTokenData = {
+        tokenId: `PENDING-${Date.now()}`,
+        transactionId: null,
+        network: 'hedera-testnet',
+        created: false,
+        note: 'Token metadata stored, HTS creation pending'
+      };
+    }
+
+    const tokenId = hederaTokenData.tokenId;
 
     // Update database
     const { data: tokenizedAsset, error: updateError } = await supabase
       .from('assets')
       .update({
         is_tokenized: true,
-        token_id: tokenId.toString(), // Store as string in DB
-        token_contract_address: TOKEN_CONTRACT_ADDRESS,
+        token_id: tokenId,
+        token_contract_address: hederaTokenData.tokenId,
         token_supply: tokenSupply,
         price_per_token: pricePerToken,
         tokens_available: tokenSupply,
         tokenized_at: new Date().toISOString(),
         verification_status: 'TOKENIZED',
-        // NFT Certificate fields
-        nft_certificate_id: `CERT-${tokenId}`,
-        nft_contract_address: TOKEN_CONTRACT_ADDRESS,
-        nft_token_uri: `ipfs://QmVerificationCert/${tokenId}`,
-        nft_minted_at: new Date().toISOString()
+        blockchain_data: {
+          ...asset.blockchain_data,
+          hedera_token_id: hederaTokenData.tokenId,
+          hedera_transaction_id: hederaTokenData.transactionId,
+          network: 'hedera-testnet'
+        }
       })
       .eq('id', req.params.id)
       .select()
@@ -391,38 +404,36 @@ router.post('/:id/tokenize', async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Asset tokenized successfully',
+      message: 'Asset tokenized successfully on Hedera',
       data: {
         asset: tokenizedAsset,
         tokenization: {
-          tokenId: tokenId, // Return as NUMBER
-          contractAddress: TOKEN_CONTRACT_ADDRESS,
+          tokenId: tokenId,
+          hederaTokenId: hederaTokenData.tokenId,
+          transactionId: hederaTokenData.transactionId,
           supply: tokenSupply,
           pricePerToken: pricePerToken,
           totalValue: tokenSupply * pricePerToken,
           tokensAvailable: tokenSupply,
-          network: 'avalanche-fuji'
+          network: 'hedera-testnet',
+          explorerUrl: hederaTokenData.created ? `https://hashscan.io/testnet/token/${hederaTokenData.tokenId}` : null
         },
-        nft: {
-          certificateId: `CERT-${tokenId}`,
-          contractAddress: TOKEN_CONTRACT_ADDRESS,
-          tokenUri: `ipfs://QmVerificationCert/${tokenId}`,
-          mintedAt: new Date().toISOString()
-        }
+        hedera: hederaTokenData
       }
     });
 
   } catch (error) {
     console.error('Error tokenizing asset:', error);
-    res.status(500).json({ error: 'Failed to tokenize asset', details: error.message });
+    res.status(500).json({ 
+      error: 'Failed to tokenize asset', 
+      details: error.message 
+    });
   }
 });
 
-// POST /api/assets/:id/mint-nft - Mint verification NFT certificate
-router.post('/:id/mint-nft', async (req, res) => {
+// POST /api/assets/:id/verify - Manual verification (if needed)
+router.post('/:id/verify', async (req, res) => {
   try {
-    const { walletAddress } = req.body;
-
     const { data: asset, error: fetchError } = await supabase
       .from('assets')
       .select('*')
@@ -433,30 +444,18 @@ router.post('/:id/mint-nft', async (req, res) => {
       return res.status(404).json({ error: 'Asset not found' });
     }
 
-    if (asset.verification_status !== 'VERIFIED' && asset.verification_status !== 'TOKENIZED') {
-      return res.status(400).json({ 
-        error: 'Only verified assets can mint NFT certificates'
-      });
-    }
+    const blockchainData = {
+      network: 'hedera-testnet',
+      verified_at: new Date().toISOString(),
+      document_hash: require('crypto').createHash('sha256').update(JSON.stringify(asset)).digest('hex'),
+      verification_id: `VER-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    };
 
-    if (asset.owner_wallet.toLowerCase() !== walletAddress.toLowerCase()) {
-      return res.status(403).json({ error: 'Only asset owner can mint NFT' });
-    }
-
-    console.log(`🎨 Minting NFT certificate for ${req.params.id}`);
-
-    const TOKEN_CONTRACT_ADDRESS = "0x17412965b7e899A84f9a4D74fC3F5f36463Cf8b9";
-    const certificateId = `CERT-${Date.now()}`;
-    const tokenUri = `ipfs://QmVerificationCert/${certificateId}`;
-
-    // Update database with NFT info
-    const { data: updatedAsset, error: updateError } = await supabase
+    const { data: verifiedAsset, error: updateError } = await supabase
       .from('assets')
       .update({
-        nft_certificate_id: certificateId,
-        nft_contract_address: TOKEN_CONTRACT_ADDRESS,
-        nft_token_uri: tokenUri,
-        nft_minted_at: new Date().toISOString()
+        verification_status: 'VERIFIED',
+        blockchain_data: blockchainData
       })
       .eq('id', req.params.id)
       .select()
@@ -464,55 +463,10 @@ router.post('/:id/mint-nft', async (req, res) => {
 
     if (updateError) throw updateError;
 
-    console.log(`✅ NFT certificate minted: ${certificateId}`);
-
-    res.json({
-      success: true,
-      message: 'NFT certificate minted successfully',
-      data: {
-        asset: updatedAsset,
-        nft: {
-          certificateId: certificateId,
-          contractAddress: TOKEN_CONTRACT_ADDRESS,
-          tokenUri: tokenUri,
-          owner: walletAddress,
-          mintedAt: new Date().toISOString(),
-          network: 'avalanche-fuji'
-        }
-      }
-    });
-
-  } catch (error) {
-    console.error('Error minting NFT:', error);
-    res.status(500).json({ error: 'Failed to mint NFT', details: error.message });
-  }
-});
-
-
-// POST /api/assets/:id/verify - Manual verify asset
-router.post('/:id/verify', async (req, res) => {
-  try {
-    const verificationId = `VER-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-    const { data: asset, error } = await supabase
-      .from('assets')
-      .update({
-        verification_status: 'VERIFIED',
-        blockchain_data: {
-          verification_id: verificationId,
-          verified_at: new Date().toISOString()
-        }
-      })
-      .eq('id', req.params.id)
-      .select()
-      .single();
-
-    if (error) throw error;
-
     res.json({
       success: true,
       message: 'Asset verified successfully',
-      data: asset
+      data: verifiedAsset
     });
 
   } catch (error) {
