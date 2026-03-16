@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const supabase = require('../supabaseClient');
+const { supabase } = require('../config/supabase');  // ← FIXED IMPORT
 const crypto = require('crypto');
 
 // POST /api/upload/file - Upload file to Supabase Storage
@@ -26,7 +26,7 @@ router.post('/file', async (req, res) => {
     const fileExtension = fileName.split('.').pop();
     const uniqueFileName = `${timestamp}-${randomStr}.${fileExtension}`;
 
-    console.log(`Uploading file: ${uniqueFileName}`);
+    console.log(`📤 Uploading file: ${uniqueFileName}`);
 
     // Upload to Supabase Storage
     const { data, error } = await supabase.storage
@@ -38,7 +38,7 @@ router.post('/file', async (req, res) => {
       });
 
     if (error) {
-      console.error('Upload error:', error);
+      console.error('❌ Upload error:', error);
       throw error;
     }
 
@@ -47,7 +47,7 @@ router.post('/file', async (req, res) => {
       .from('asset-files')
       .getPublicUrl(uniqueFileName);
 
-    console.log(`File uploaded: ${publicUrl}`);
+    console.log(`✅ File uploaded: ${publicUrl}`);
 
     res.json({
       success: true,
@@ -60,7 +60,7 @@ router.post('/file', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error uploading file:', error);
+    console.error('❌ Error uploading file:', error);
     res.status(500).json({ 
       error: 'Failed to upload file',
       details: error.message 
@@ -73,11 +73,15 @@ router.delete('/file/:fileName', async (req, res) => {
   try {
     const { fileName } = req.params;
 
+    console.log(`🗑️  Deleting file: ${fileName}`);
+
     const { error } = await supabase.storage
       .from('asset-files')
       .remove([fileName]);
 
     if (error) throw error;
+
+    console.log(`✅ File deleted: ${fileName}`);
 
     res.json({
       success: true,
@@ -85,9 +89,10 @@ router.delete('/file/:fileName', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error deleting file:', error);
+    console.error('❌ Error deleting file:', error);
     res.status(500).json({ 
-      error: 'Failed to delete file' 
+      error: 'Failed to delete file',
+      details: error.message 
     });
   }
 });
