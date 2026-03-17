@@ -19,12 +19,13 @@ function SearchBar({
 
   const categoryOptions = [
     "All Assets",
-    ...new Set(MarketPlacePropAsset.map((asset) => asset.category)),
+    "Real Estates",
+    "Precious Metals",
+    "Art & Collectibles",
+    "Luxury Assets",
+    "Commodities",
   ];
-  const statusOptions = [
-    "All Statuses",
-    ...new Set(MarketPlacePropAsset.map((asset) => asset.status)),
-  ];
+  const statusOptions = ["All Statuses", "TOKENIZED", "VERIFIED", "UNCLAIMED"];
 
   return (
     <>

@@ -42,6 +42,7 @@ function MarketPlace({ sideBarOut }: DashboardProps) {
   useEffect(() => {
     if (allAssets) {
       console.log(allAssets);
+      setFilteredAssets(allAssets);
     }
   }, [allAssets]);
 
@@ -68,7 +69,7 @@ function MarketPlace({ sideBarOut }: DashboardProps) {
             <p className="mt-10"> {allAssets.length} assets Found</p>
 
             <div className="mt-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {allAssets?.map((asset, index) => (
+              {filteredAssets?.map((asset, index) => (
                 <div
                   key={index}
                   className="mb-4"
