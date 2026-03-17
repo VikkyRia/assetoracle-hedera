@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Header from "../components/Header";
 import MenuBar from "../components/MenuBar";
 import { useNavigate } from "react-router";
@@ -11,6 +11,19 @@ interface DashboardProps {
 function Dashboard({ sideBarOut }: DashboardProps) {
   const [name, setName] = useState("Space Panda");
   const { dashboardInfo, allAssets } = useGetUserInfo();
+  useEffect(() => {
+    const handleClick = () => {
+      if (sideBarOut) {
+        console.log("body clicked");
+      }
+    };
+
+    document.body.addEventListener("click", handleClick);
+
+    return () => {
+      document.body.removeEventListener("click", handleClick);
+    };
+  }, [sideBarOut]);
   const navigate = useNavigate();
   const investments = [
     {

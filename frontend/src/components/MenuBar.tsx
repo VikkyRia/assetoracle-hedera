@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 
 interface MenuBarProps {
@@ -14,6 +14,7 @@ function MenuBar({ sideBarOut }: MenuBarProps) {
     { name: "Register Asset" },
     { name: "Settings" },
   ];
+
   return (
     <>
       <div
