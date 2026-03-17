@@ -18,9 +18,9 @@ interface UserInfo {
 
 interface DashboardInfo {
   pendingVerifications: number;
-  totalValue: number;
+  totalValue: string;
   totalAssets: number;
-  totalInvestmentValue: number;
+  totalInvestmentValue: string;
   verifiedAssets: number;
 }
 
@@ -55,8 +55,8 @@ export const useGetUserInfo = () => {
       const data = userDashboardInfo.data.data.stats as DashboardInfo;
       const asset = userDashboardInfo.data.data.assetsByStatus;
       setDashBoardInfo([
-        data.totalValue,
-        data.totalInvestmentValue,
+        `$${data.totalValue}`,
+        `$${data.totalInvestmentValue}`,
         (data.pendingVerifications = asset.pending.length),
         data.verifiedAssets,
       ]);
