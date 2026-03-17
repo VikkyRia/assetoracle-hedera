@@ -1,6 +1,6 @@
 import axios from "axios";
 import { useEffect, useState } from "react";
-import { useActiveAccount } from "thirdweb/react";
+import { useAppKitAccount } from "@reown/appkit/react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import type { AssetInfo } from "./useAssetQuery";
 
@@ -18,34 +18,28 @@ interface UserInfo {
 
 interface DashboardInfo {
   pendingVerifications: number;
-  totalAssetValue: number;
+  totalValue: number;
   totalAssets: number;
-  totalInvestments: number;
+  totalInvestmentValue: number;
   verifiedAssets: number;
 }
 
 export const useGetUserInfo = () => {
   const [backendUser, setBackendUser] = useState<UserInfo | null>(null);
   const [dashboardInfo, setDashBoardInfo] = useState<number[] | null>(null);
-  const ActiveAccount = useActiveAccount();
+  const ActiveAccount = useAppKitAccount();
   const [allAssets, setAllAssets] = useState<AssetInfo[] | null>(null);
 
   const { data: userInfo, error: userInfoError } = useQuery({
-    queryKey: ["getUser", ActiveAccount?.address],
-    queryFn: () => getUser(ActiveAccount?.address!),
-    enabled: !!ActiveAccount?.address,
+    queryKey: ["getUser", ActiveAccount?.address?.toLowerCase()],
+    queryFn: () => getUser(ActiveAccount?.address!.toLowerCase()),
+    enabled: !!ActiveAccount?.address?.toLowerCase(),
   });
 
   const { data: userDashboardInfo, error: userDashboardInfoError } = useQuery({
-    queryKey: ["getUserDashboard", ActiveAccount?.address],
-    queryFn: () => getUserDashboard(ActiveAccount?.address!),
-    enabled: !!ActiveAccount?.address,
-  });
-
-  const { data: userAssetInfo, error: userAssetInfoError } = useQuery({
-    queryKey: ["getUserAssets", ActiveAccount?.address],
-    queryFn: () => getUserAssets(ActiveAccount?.address!),
-    enabled: !!ActiveAccount?.address,
+    queryKey: ["getUserDashboard", ActiveAccount?.address?.toLowerCase()],
+    queryFn: () => getUserDashboard(ActiveAccount?.address!.toLowerCase()),
+    enabled: !!ActiveAccount?.address?.toLowerCase(),
   });
 
   useEffect(() => {
@@ -59,21 +53,16 @@ export const useGetUserInfo = () => {
     if (userDashboardInfo) {
       console.log(userDashboardInfo);
       const data = userDashboardInfo.data.data.stats as DashboardInfo;
+      const asset = userDashboardInfo.data.data.assetsByStatus;
       setDashBoardInfo([
-        data.totalAssetValue,
-        data.totalInvestments,
-        data.pendingVerifications,
+        data.totalValue,
+        data.totalInvestmentValue,
+        (data.pendingVerifications = asset.pending.length),
         data.verifiedAssets,
       ]);
+      setAllAssets(userDashboardInfo.data.data.assets);
     }
-    if (userAssetInfo) {
-      console.log(userAssetInfo);
-      setAllAssets(userAssetInfo.data.data.assets);
-    }
-    if (userAssetInfoError) {
-      console.log(userAssetInfoError);
-    }
-  }, [userInfo, userDashboardInfo, userAssetInfo, userAssetInfoError]);
+  }, [userInfo, userDashboardInfo]);
 
   return {
     backendUser,

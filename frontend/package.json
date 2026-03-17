@@ -10,15 +10,23 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@hashgraph/hedera-wallet-connect": "^2.0.7",
+    "@hiero-ledger/sdk": "^2.81.0",
+    "@reown/appkit": "1.8.10",
+    "@reown/appkit-adapter-wagmi": "^1.8.19",
+    "@reown/appkit-controllers": "1.8.10",
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/react-query": "^5.90.21",
+    "@walletconnect/universal-provider": "^2.23.8",
     "axios": "^1.13.5",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router": "^7.13.0",
     "react-router-dom": "^7.13.0",
     "tailwindcss": "^4.1.18",
-    "thirdweb": "^5.118.2"
+    "thirdweb": "^5.118.2",
+    "viem": "^2.47.2",
+    "wagmi": "^3.5.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

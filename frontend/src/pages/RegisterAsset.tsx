@@ -2,14 +2,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Header from "../components/Header";
 import MenuBar from "../components/MenuBar";
 import { useMutation } from "@tanstack/react-query";
-import { useActiveAccount } from "thirdweb/react";
+import { useAppKitAccount } from "@reown/appkit/react";
 import { register } from "../server_functions/Server_Functions";
 
 interface DashboardProps {
   sideBarOut: boolean;
 }
 function RegisterAsset({ sideBarOut }: DashboardProps) {
-  const activeAccount = useActiveAccount();
+  const activeAccount = useAppKitAccount();
 
   const itemList = [
     {

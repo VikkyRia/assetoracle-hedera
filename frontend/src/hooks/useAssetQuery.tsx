@@ -1,6 +1,5 @@
-import axios from "axios";
 import { useEffect, useState } from "react";
-import { useActiveAccount } from "thirdweb/react";
+
 import { useQuery, useMutation } from "@tanstack/react-query";
 
 import {

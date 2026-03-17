@@ -1,7 +1,8 @@
 import { useState } from "react";
 import "../App.css";
+import { AppKitButton } from "@reown/appkit/react";
 import { useNavigate, useLocation } from "react-router";
-import { ConnectButton, lightTheme } from "thirdweb/react";
+
 import { Thirdweb_Client } from "../Thirdweb/thirdweb";
 import { avalancheFuji } from "thirdweb/chains";
 import AuthWrapper from "../pages/AuthWrapper";
@@ -10,26 +11,14 @@ interface HeaderProps {
   sideBarOut: boolean;
   setSideBarOut: (value: boolean) => void;
 }
-
+function ConnectButton() {
+  return <AppKitButton />;
+}
 function Header({ sideBarOut, setSideBarOut }: HeaderProps) {
   const nav = useNavigate();
   const location = useLocation();
   const [loggedIn, setLoggedIn] = useState(false);
-  const myCustomTheme = lightTheme({
-    colors: {
-      // Main accent button background color (often used for button background when connected/disconnected)
-      accentButtonBg: "#6366f1", // indigo-500 example – change to your brand color
-      accentButtonText: "#ffffff", // text on accent button bg
-      primaryButtonBg: "#4f46e5", // emerald-500 – connected button bg
-      primaryButtonText: "#ffffff",
-      secondaryButtonBg: "#374151", // gray-700
-      secondaryButtonText: "#e5e7eb",
-      modalBg: "#ffffff", // background of connect modal
-      borderColor: "#4b5563",
 
-      // ... many more options (check full list below)
-    },
-  });
   return (
     <header className="fixed top-0 left-0 w-full bg-white shadow-sm z-50">
       <div className="flex items-center justify-between p-2 w-full text-black">
@@ -85,11 +74,8 @@ function Header({ sideBarOut, setSideBarOut }: HeaderProps) {
         </div>
 
         <div className="flex gap-5">
-          <ConnectButton
-            client={Thirdweb_Client}
-            chain={avalancheFuji}
-            theme={myCustomTheme}
-          />
+          <ConnectButton />
+
           <>
             <AuthWrapper
               children={

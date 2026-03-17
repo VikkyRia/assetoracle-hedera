@@ -10,7 +10,7 @@ import {
   getAsset,
   tokenizeAsset,
 } from "../server_functions/Server_Functions";
-import { useActiveAccount } from "thirdweb/react";
+import { useAppKitAccount } from "@reown/appkit/react";
 import { encodeAbiParameters, keccak256 } from "thirdweb/utils";
 import { CONTRACT_ADDRESS, Thirdweb_Client } from "../Thirdweb/thirdweb";
 import { avalancheFuji } from "thirdweb/chains";
@@ -26,7 +26,7 @@ function Asset({ sideBarOut }: DashboardProps) {
   const [tokenSupply, setTokenSupply] = useState("");
   const [documentation, setDocumentation] = useState<File[]>([]);
   const [assetInfo, setAssetInfo] = useState<AssetInfo | null>(null);
-  const activeAccount = useActiveAccount();
+  const activeAccount = useAppKitAccount();
 
   const { data, error, refetch } = useQuery({
     queryKey: ["getAsset", id],
@@ -288,16 +288,11 @@ function Asset({ sideBarOut }: DashboardProps) {
                     </div>
                   </div>
                   {assetInfo.verification_status !== "TOKENIZED" &&
-                  activeAccount?.address.toLowerCase() ===
-                    (assetInfo.owner_wallet
-                      ? assetInfo.owner_wallet.toLowerCase()
-                      : "") ? (
-                    <div className="border border-[#e2e8f0] shadow-md p-5 rounded-md mt-10">
-                      {page4()}
-                    </div>
-                  ) : (
-                    <></>
-                  )}
+                    activeAccount.address === assetInfo.owner_wallet && (
+                      <div className="border border-[#e2e8f0] shadow-md p-5 rounded-md mt-10">
+                        {page4()}
+                      </div>
+                    )}
 
                   <div className="border border-[#e2e8f0] shadow-md p-5 rounded-md mt-10">
                     <h2 className="text-md font-semibold">Property details</h2>

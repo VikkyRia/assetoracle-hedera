@@ -17,9 +17,11 @@ export const getUserDashboard = async (address: string) => {
 };
 
 export const getUserAssets = async (address: string) => {
+  console.log(address);
   const userAssets = await axios.get(
-    `${API_ENDPOINT}/api/user/portfolio/${address.toLowerCase()}`,
+    `${API_ENDPOINT}/api/assets/user/${address.toLowerCase()}`,
   );
+  console.log(userAssets);
   return userAssets;
 };
 
@@ -35,6 +37,7 @@ export const createUser = async (address: string) => {
 export const getAssets = async () => {
   console.log("Getting assets");
   const assets = await axios.get(`${API_ENDPOINT}/api/assets`);
+  console.log("hsdshd", `${API_ENDPOINT}/api/assets`);
   return assets;
 };
 
@@ -98,6 +101,42 @@ export const register = async (param: {
   propertyDetails?: string;
   images?: File[] | null;
 }) => {
-  const user = await axios.post(`${API_ENDPOINT}/api/assets/register`, param);
+  const formData = new FormData();
+  let imageLink: string = "";
+  if (param.images) {
+    formData.append("image", param.images[0]);
+    console.log(formData);
+    const key = "46794aea07a79f36db81f3046adc76b3";
+    const res = await axios.post(
+      `https://api.imgbb.com/1/upload?key=${key}`,
+      formData,
+    );
+    console.log(res);
+    imageLink = res.data.data.url;
+  }
+
+  const user = await axios.post(`${API_ENDPOINT}/api/assets/register`, {
+    name: param.name,
+    description: param.description,
+    estimatedValue: param.estimatedValue,
+    ownerWallet: param.ownerWallet,
+    category: param.category,
+    location: {
+      address: param.location?.address,
+      city: param.location?.city,
+      state: param.location?.state,
+    },
+    propertyDetails: param.propertyDetails,
+    images: [imageLink],
+  });
+  console.log(imageLink);
   return user;
 };
+
+export async function uploadFiles(data: {
+  file: File | null;
+  fileName: string;
+}) {
+  const uploaded = await axios.post(`${API_ENDPOINT}/api/upload/file`, data);
+  return uploaded;
+}

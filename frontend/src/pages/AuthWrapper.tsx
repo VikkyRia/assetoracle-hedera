@@ -1,11 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router";
-import {
-  useActiveAccount,
-  useConnect,
-  useActiveWalletConnectionStatus,
-  ConnectButton,
-} from "thirdweb/react";
+import { useAppKitAccount } from "@reown/appkit/react";
 import { Thirdweb_Client } from "../Thirdweb/thirdweb";
 
 interface AuthWrapperProps {
@@ -14,14 +9,12 @@ interface AuthWrapperProps {
 
 function AuthWrapper({ children }: AuthWrapperProps) {
   const navigate = useNavigate();
-  const account = useActiveAccount();
-  const { isConnecting } = useConnect(); // true during manual connect
-  const status = useActiveWalletConnectionStatus(); // "connected" | "disconnected" | "connecting"
+  const account = useAppKitAccount();
 
   // ────────────────────────────────────────────────
   //  Recommended: show loading while we detect state
   // ────────────────────────────────────────────────
-  if (status === "connecting" || isConnecting) {
+  if (account.status === "connecting") {
     console.log("connecting");
   }
 
@@ -29,10 +22,10 @@ function AuthWrapper({ children }: AuthWrapperProps) {
   //   - status === "connected"  → user is signed in
   //   - status === "disconnected" → not signed in
   useEffect(() => {
-    if (status === "disconnected") {
+    if (account.status === "disconnected") {
       navigate("/");
     }
-  }, [status]);
+  }, [account.status]);
 
   // If we reach here → status === "connected" and account should exist
   if (!account?.address) {
