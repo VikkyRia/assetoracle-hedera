@@ -219,7 +219,10 @@ AssetOracle demonstrates:
 ## Team
 
 **Victoria** — Backend Engineer (2+ years, 3MTT Hackathon Winner)
+
 **Noah** — AI/ML Engineer (4+ years, Google Hackathon 3rd place)
+
+**Mavis** — Full-Stack & Mobile Developer (4+ years, 2x Hackathon Winner)
 
 ---
 
