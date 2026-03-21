@@ -2,6 +2,7 @@
 
 **One-liner:**
 The Complete RWA Infrastructure Stack
+<img width="356" height="351" alt="AssetOracle Deck" src="https://github.com/user-attachments/assets/c1fdeb80-e33c-4d96-bb22-8707567400c9" />
 
 ---
 
