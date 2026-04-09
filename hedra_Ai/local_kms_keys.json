@@ -1,0 +1,11 @@
+{
+  "mock-kms-62204a3b871ab5088751bdb109e08a8e": {
+    "KeyId": "mock-kms-62204a3b871ab5088751bdb109e08a8e",
+    "Description": "Hedera Transaction Signing Key - Test",
+    "CreationDate": "2026-03-23T15:40:15.559532",
+    "Enabled": true,
+    "KeyState": "Enabled",
+    "PrivateKey": "-----BEGIN PRIVATE KEY-----\nMIGEAgEAMBAGByqGSM49AgEGBSuBBAAKBG0wawIBAQQgmQ87pFZd3L6NnRJTHupQ\nwuQivjXq7VGwBGF008QvbpGhRANCAAT5wtpC73tPlvTTFC+tdrsvumFkIaGM9sFu\npxAbDBvt1x2XH8IMjIgtGL7dIjIGJBXuX4RgveGoXOZ10VcOPviv\n-----END PRIVATE KEY-----\n",
+    "PublicKey": "-----BEGIN PUBLIC KEY-----\nMFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAE+cLaQu97T5b00xQvrXa7L7phZCGhjPbB\nbqcQGwwb7dcdlx/CDIyILRi+3SIyBiQV7l+EYL3hqFzmddFXDj74rw==\n-----END PUBLIC KEY-----\n"
+  }
+}
