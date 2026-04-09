@@ -541,6 +541,8 @@ router.post('/:id/tokenize', async (req, res) => {
         is_tokenized: true,
         token_id: tokenId,
         token_contract_address: hederaTokenData.tokenId,
+        contract_address: hederaTokenData.tokenId,  // NEW:
+        token_number: parseInt(tokenSupply),        // Updated
         token_supply: tokenSupply,
         price_per_token: pricePerToken,
         tokens_available: tokenSupply,
